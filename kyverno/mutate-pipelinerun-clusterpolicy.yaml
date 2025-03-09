@@ -1,0 +1,51 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mutate-pipelinerun
+spec:
+  rules:
+    - name: mutate-pipelinerun-runafter
+      match:
+        any:
+        - resources:
+            kinds:
+            - tekton.dev/v1/PipelineRun
+            operations:
+            - CREATE
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.pipelineSpec.tasks[0].taskSpec.kind || '' }}"
+          operator: NotEquals
+          value: Workload
+      mutate:
+        foreach:
+        - list: "request.object.spec.pipelineSpec.tasks"
+          patchesJson6902: |-
+            - path: /spec/pipelineSpec/tasks/{{elementIndex}}/runAfter/0
+              op: add
+              value: kueue-workload
+    - name: mutate-pipelinerun-kueue
+      match:
+        any:
+        - resources:
+            kinds:
+            - tekton.dev/v1/PipelineRun
+            operations:
+            - CREATE
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.pipelineSpec.tasks[0].taskSpec.kind || '' }}"
+          operator: NotEquals
+          value: Workload
+      mutate:
+        patchesJson6902: |-
+          - path: "/spec/pipelineSpec/tasks/0"
+            op: add
+            value:
+              name: kueue-workload
+              taskSpec:
+                apiVersion: kueue.x-k8s.io/v1beta1
+                kind: Workload
+                spec:
+                  active: true
+                  queueName: local-queue

@@ -1,0 +1,43 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-workload
+spec:
+  rules:
+    - name: generate-workload
+      match:
+        any:
+        - resources:
+            kinds:
+            - tekton.dev/v1beta1/CustomRun
+            operations:
+            - CREATE
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.customSpec.apiVersion || '' }}"
+          operator: Equals
+          value: kueue.x-k8s.io/v1beta1
+        - key: "{{ request.object.spec.customSpec.kind || '' }}"
+          operator: Equals
+          value: Workload
+      generate:
+        generateExisting: true
+        apiVersion: kueue.x-k8s.io/v1beta1
+        kind: Workload
+        name: "{{ request.object.metadata.name }}"
+        namespace: "{{ request.object.metadata.namespace }}"
+        data:
+          spec:
+            active: "{{ request.object.spec.customSpec.spec.active || true }}"
+            queueName: "{{ request.object.spec.customSpec.spec.queueName || 'local-queue' }}"
+            podSets:
+            - count: 1
+              name: pod-set-1
+              template:
+                spec:
+                  containers:
+                  - name: dummy
+                    image: dummy
+                    resources:
+                      requests:
+                        memory: 1Gi

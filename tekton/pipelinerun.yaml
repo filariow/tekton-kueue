@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1 # or tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: pr-echo-test
+  namespace: my-ns
+spec:
+  params:
+    - name: HELLO
+      value: "Hello World!"
+    - name: BYE
+      value: "Bye World!"
+  pipelineSpec:
+    tasks:
+      # - name: kueue-workload
+      #   taskSpec:
+      #     apiVersion: kueue.x-k8s.io/v1beta1
+      #     kind: Workload
+      #     spec:
+      #       active: true
+      #       queueName: local-queue
+      - name: echo-hello
+        taskSpec:
+          steps:
+            - name: echo
+              image: ubuntu
+              script: |
+                #!/usr/bin/env bash
+                echo "$(params.HELLO)"                
+      - name: echo-bye
+        taskSpec:
+          steps:
+            - name: echo
+              image: ubuntu
+              script: |
+                #!/usr/bin/env bash
+                echo "$(params.BYE)"

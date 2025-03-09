@@ -1,0 +1,72 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mutate-customrun-workload
+spec:
+  rules:
+    - name: mutate-customrun-workload
+      match:
+        any:
+        - resources:
+            kinds:
+            - kueue.x-k8s.io/v1beta1/Workload
+            - kueue.x-k8s.io/v1beta1/Workload/status
+      context:
+      - name: workloadAdmitted
+        apiCall:
+          urlPath: "/apis/kueue.x-k8s.io/v1beta1/namespaces/{{ request.object.metadata.namespace }}/workloads/{{ request.object.metadata.name }}"
+          jmesPath: "[status.conditions[?type=='Admitted'][status=='True'] || []]| length(@)" 
+      preconditions:
+        all:
+        - key: "{{ workloadAdmitted }}"
+          operator: GreaterThanOrEquals
+          value: 1
+      mutate:
+        targets:
+        - apiVersion: tekton.dev/v1beta1
+          kind: CustomRun/status
+          name: "{{ request.object.metadata.name }}"
+          namespace: "{{ request.object.metadata.namespace }}"
+        patchStrategicMerge:
+          status:
+            conditions:
+            - type: "Succeeded"
+              status: "True"
+              reason: "PipelineRunScheduled"
+              message: "PipelineRun scheduled to run"
+# ---
+# apiVersion: kyverno.io/v1
+# kind: ClusterPolicy
+# metadata:
+#   name: mutate-customrun-workload-2
+# spec:
+#   rules:
+#     - name: mutate-customrun-workload-2
+#       context:
+#       - name: workloadAdmitted
+#         apiCall:
+#           urlPath: "/apis/kueue.x-k8s.io/v1beta1/namespaces/{{ request.object.metadata.namespace }}/workloads/{{ request.object.metadata.name }}"
+#           jmesPath: "[status.conditions[?type=='Admitted'][status=='True'] || []]| length(@)" 
+#       match:
+#         any:
+#         - resources:
+#             kinds:
+#             - tekton.dev/v1beta1/CustomRun
+#       preconditions:
+#         all:
+#         - key: "{{ workloadAdmitted }}"
+#           operator: GreaterThanOrEquals
+#           value: 1
+#       mutate:
+#         targets:
+#         - apiVersion: tekton.dev/v1beta1
+#           kind: CustomRun/status
+#           name: "{{ request.object.metadata.name }}"
+#           namespace: "{{ request.object.metadata.namespace }}"
+#         patchStrategicMerge:
+#           status:
+#             conditions:
+#             - type: "Succeeded"
+#               status: "True"
+#               reason: "PipelineRunScheduled"
+#               message: "PipelineRun scheduled to run"

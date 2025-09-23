@@ -46,8 +46,9 @@ const (
 )
 
 const (
-	annotationDomain            = "kueue.konflux-ci.dev/"
-	annotationResourcesRequests = annotationDomain + "requests-"
+	annotationDomain                = "kueue.konflux-ci.dev/"
+	annotationResourcesRequests     = annotationDomain + "requests-"
+	annotationNodeSelectorsRequests = annotationDomain + "node-selector-"
 )
 
 var (
@@ -152,6 +153,7 @@ func (p *PipelineRun) PodSets() ([]kueue.PodSet, error) {
 							},
 						},
 					},
+					NodeSelector: p.nodeSelectorRequests(),
 				},
 			},
 			Count: 1,
@@ -186,6 +188,18 @@ func (p *PipelineRun) resourcesRequests() corev1.ResourceList {
 	}
 
 	return requests
+}
+
+func (p *PipelineRun) nodeSelectorRequests() map[string]string {
+	nodeLabels := map[string]string{}
+
+	for k, v := range p.GetAnnotations() {
+		if t, ok := strings.CutPrefix(k, annotationNodeSelectorsRequests); ok {
+			nodeLabels[t] = v
+		}
+	}
+
+	return nodeLabels
 }
 
 // PodsReady implements jobframework.GenericJob.

@@ -70,6 +70,7 @@ func SetupWithManager(mgr ctrl.Manager) error {
 		mgr.GetClient(),
 		mgr.GetEventRecorderFor("kueue-plr"),
 		jobframework.WithWaitForPodsReady(&kueueconfig.WaitForPodsReady{}),
+		jobframework.WithLabelKeysToCopy([]string{"tekton.dev/pipeline"}),
 	).SetupWithManager(mgr)
 }
 
